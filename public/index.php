@@ -1,4 +1,6 @@
 <?php
+require __DIR__ . '/../vendor/autoload.php';
+
 $routes = require __DIR__ . '/../app/modules/Auth/Routes/Web.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
