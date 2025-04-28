@@ -2,6 +2,7 @@
 namespace App\Modules\Auth\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Modules\Employees\Models\Employee;  // plural
 
 /**
  * Class Auth
@@ -37,4 +38,17 @@ class User extends Model
             }
         });
     }
+
+// in App\Modules\Auth\Models\User.php
+
+public function employee()
+{
+    return $this->hasOne(
+      \App\Modules\Employees\Models\Employee::class,  // ← note the singular Employee::class
+      'user_id',
+      'id'
+    );
+}
+
+
 }

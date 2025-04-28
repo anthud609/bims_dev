@@ -7,8 +7,9 @@ use App\Modules\Auth\Models\User;
 // boot up flash/session for toast & grab current user
 if (session_status() === PHP_SESSION_NONE) session_start();
 $user = Auth::check()
-      ? User::find(Auth::userId())
+      ? User::with('employee')->find(Auth::userId())
       : null;
+
 ?>
 <!DOCTYPE html>
 <html lang="en" x-data="sessionFlash()" x-init="init()">
@@ -31,7 +32,8 @@ $user = Auth::check()
   <button @click="open = !open" 
           class="flex items-center space-x-2 text-gray-800 hover:text-gray-600">
     <img src="https://via.placeholder.com/32" alt="Avatar" class="h-8 w-8 rounded-full">
-    <span class="font-medium"><?= htmlspecialchars($user->email) ?></span>
+    <span class="font-medium">  <?= htmlspecialchars($user->employee->full_name) ?>
+    </span>
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path d="M19 9l-7 7-7-7"/>
     </svg>
@@ -61,8 +63,17 @@ $user = Auth::check()
     <div class="px-4 py-3 flex items-center space-x-3">
       <img src="https://via.placeholder.com/40" alt="Avatar" class="h-10 w-10 rounded-full">
       <div class="flex-1">
-        <p class="font-medium text-gray-800">Jane Doe</p>
-        <p class="text-sm text-gray-500">jane.doe@example.com</p>
+      <p class="font-medium text-gray-800">
+  <?= htmlspecialchars(
+       $user->employee
+         ? $user->employee->full_name
+         : $user->email
+     ) ?>
+</p>
+<p class="text-sm text-gray-500">
+  <?= htmlspecialchars($user->email) ?>
+</p>
+
         <a href="#"
            class="mt-1 inline-flex items-center text-sm text-purple-600 hover:underline">
           View account
