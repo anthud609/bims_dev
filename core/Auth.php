@@ -13,12 +13,12 @@ class Auth
         return isset($_SESSION['user_id']);
     }
 
-    public static function userId(): ?int
+    public static function userId(): ?string
     {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
-        
+    
         return $_SESSION['user_id'] ?? null;
     }
 

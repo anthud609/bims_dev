@@ -22,7 +22,7 @@ class User extends Model
     protected $keyType = 'string';
 
     // if your column is literally named "uuid" instead of "id"
-    protected $primaryKey = 'uuid';
+    protected $primaryKey = 'id';
 
     protected $fillable = ['email','password','uuid'];
     protected $hidden   = ['password'];
