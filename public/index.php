@@ -1,18 +1,41 @@
 <?php
 require __DIR__ . '/../vendor/autoload.php';
 
-$routes = require __DIR__ . '/../app/modules/Auth/Routes/Web.php';
+use Core\Router;
+use App\Modules\Auth\Controllers\AuthController;
+use Core\Middleware\AuthMiddleware;
+use Illuminate\Database\Capsule\Manager as Capsule;
 
-$method = $_SERVER['REQUEST_METHOD'];
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+// Setup database connection
+$capsule = new Capsule;
 
-foreach ($routes as [$routeMethod, $routePath, $handler]) {
-    if ($method === $routeMethod && $path === $routePath) {
-        [$controllerClass, $methodName] = $handler;
-        (new $controllerClass())->$methodName();
-        exit;
-    }
+$capsule->addConnection([
+    'driver'    => 'mysql',
+    'host'      => '127.0.0.1',
+    'database'  => 'bims',
+    'username'  => 'root',
+    'password'  => '',
+    'charset'   => 'utf8',
+    'collation' => 'utf8_unicode_ci',
+    'prefix'    => '',
+]);
+
+// Set the Capsule instance globally
+$capsule->setAsGlobal();
+$capsule->bootEloquent();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
-http_response_code(404);
-echo "404 Not Found";
+$router = new Router();
+
+// Load routes (normally from your module route files)
+$router->add('GET', '/', [AuthController::class, 'home'], [AuthMiddleware::class]);
+$router->add('GET', '/login', [AuthController::class, 'loginForm']);
+$router->add('POST', '/login', [AuthController::class, 'login']);
+$router->add('GET', '/register', [AuthController::class, 'registerForm']);
+$router->add('POST', '/register', [AuthController::class, 'register']);
+$router->add('POST', '/logout', [AuthController::class, 'logout'], [AuthMiddleware::class]);
+
+// Dispatch request
+$router->dispatch($_SERVER['REQUEST_METHOD'], parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));

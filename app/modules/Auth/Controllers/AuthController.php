@@ -2,7 +2,7 @@
 namespace App\Modules\Auth\Controllers;
 
 use Core\Controller;
-use App\Modules\Auth\Models;
+use App\Modules\Auth\Models\User;
 
 /**
  * Class AuthController
@@ -14,7 +14,7 @@ class AuthController extends Controller
     
     public function home(): void
 {
-    echo "Welcome to the BIMS system!";
+    echo "Welcome to the BIMS system! Logged in as: " . $_SESSION['user_id'];
 }
 public function loginForm(): void
     {
@@ -22,7 +22,10 @@ public function loginForm(): void
     }
     public function login(): void
 {
-    session_start();
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
     
     $email = $_POST['email'] ?? null;
     $password = $_POST['password'] ?? null;
