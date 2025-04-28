@@ -12,19 +12,17 @@ class AuthController extends Controller
 {
     public function home(): void
     {
-        // ensure session + login
         if (session_status() === PHP_SESSION_NONE) session_start();
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             $this->redirect('/login');
         }
-
-        // fetch fresh user for display
+    
         $user = User::find(Auth::userId());
-
-        echo "Welcome to the BIMS system! Logged in as: "
-           . htmlspecialchars($user->email);
+    
+        // send $user into the view instead of echoing here
+        $this->view('Auth/Views/login', compact('showCaptcha'), 'auth');
     }
-
+    
     public function loginForm(): void
     {
         if (session_status()===PHP_SESSION_NONE) session_start();

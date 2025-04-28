@@ -1,15 +1,5 @@
-<!DOCTYPE html>
-<html lang="en" x-data="sessionFlash()" x-init="init()">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Login | BIMS</title>
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Alpine.js for interactivity (toasts) -->
-  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+<div class="flex items-center justify-center h-[calc(100vh-4rem)]">
   <!-- Toast container -->
   <template x-if="toast.show">
     <div 
@@ -78,5 +68,5 @@
       }
     }
   </script>
-</body>
-</html>
+</div>
+
