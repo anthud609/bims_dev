@@ -25,16 +25,21 @@ class AuthController extends Controller
 
     public function loginForm(): void
     {
-        if (session_status() === PHP_SESSION_NONE) session_start();
-
-        // generate CSRF if missing
-        if (empty($_SESSION['csrf_token'])) {
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        if (session_status()===PHP_SESSION_NONE) session_start();
+    
+        // generate CSRF…
+        $_SESSION['csrf_token'] ??= bin2hex(random_bytes(32));
+    
+        // decide if we need captcha
+        $showCaptcha = false;
+        if (!empty($_SESSION['last_email'])) {
+            $user = User::where('email', $_SESSION['last_email'])->first();
+            $showCaptcha = $user && $user->failed_attempts >= 2;
         }
-
-        // render your Tailwind/Alpine login view
-        $this->view('Auth/Views/login');
+    
+        $this->view('Auth/Views/login', compact('showCaptcha'));
     }
+    
 
     public function login(): void
     {
@@ -48,6 +53,24 @@ class AuthController extends Controller
         // Hard-coded max attempts
         $maxAttempts = 3;
     
+// preserve the email so loginForm() can inspect it
+$_SESSION['last_email'] = $email;
+
+// if we showed a captcha, verify it
+if ($_POST['g-recaptcha-response'] ?? '' ) {
+    $resp = $_POST['g-recaptcha-response'];
+    $verify = file_get_contents(
+      "https://www.google.com/recaptcha/api/siteverify?"
+     . "secret={$_ENV['RECAPTCHA_SECRET_KEY']}&response={$resp}"
+    );
+    $json = json_decode($verify, true);
+    if (empty($json['success']) || $json['score'] < 0.5) {
+        $_SESSION['flash']['error'] = "CAPTCHA failed—prove you’re human.";
+        $this->redirect('/login');
+    }
+}
+
+
         // Find the user
         $user = User::where('email', $email)->first();
     
@@ -66,7 +89,7 @@ class AuthController extends Controller
     
         // OK to try password
         if (password_verify($password, $user->password)) {
-            // ✅ success: reset counters
+            //  success: reset counters
             $user->failed_attempts = 0;
             $user->last_failed_at  = null;
             $user->is_locked       = 0;
@@ -77,7 +100,7 @@ class AuthController extends Controller
             $this->redirect('/');
         }
     
-        // ❌ failure: bump counter
+        //  failure: bump counter
         $user->failed_attempts += 1;
         $user->last_failed_at  = date('Y-m-d H:i:s');
     

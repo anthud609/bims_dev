@@ -44,6 +44,11 @@
           class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-purple-400"
         >
       </div>
+      <?php if (!empty($showCaptcha)): ?>
+  <!-- Google reCAPTCHA v3 (or v2 checkbox) -->
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <div class="g-recaptcha" data-sitekey="<?= $_ENV['RECAPTCHA_SITE_KEY'] ?>"></div>
+<?php endif; ?>
 
       <button
         type="submit"

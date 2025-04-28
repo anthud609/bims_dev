@@ -10,6 +10,7 @@
         "illuminate/database": "10.0",
         "vlucas/phpdotenv": "5.5",
         "symfony/console": "6.0",
-        "symfony/filesystem": "6.0"
+        "symfony/filesystem": "6.0",
+        "predis/predis": "^2.3"
     }
 }
