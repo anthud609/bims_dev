@@ -13,7 +13,9 @@
         "symfony/filesystem": "6.0",
         "predis/predis": "^2.3",
         "ramsey/uuid": "^4.7",
-        "robmorgan/phinx": "^0.16.7"
+        "robmorgan/phinx": "^0.16.7",
+        "monolog/monolog": "^3.9",
+        "psr/log": "^3.0"
     },
     
       "scripts": {
@@ -28,4 +30,3 @@
         ]
       }
     }
-    

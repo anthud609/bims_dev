@@ -8,6 +8,7 @@ use Core\Settings; // Import the Settings class
 use Carbon\Carbon;
 use App\Modules\Auth\Models\Session as UserSession;
 use Illuminate\Support\Str;
+use Core\LoggingServiceProvider;
 
 class AuthController extends Controller
 {
@@ -43,102 +44,141 @@ class AuthController extends Controller
         $this->view('Auth/Views/login', compact('showCaptcha'), 'auth');
     }
 
-
     public function login(): void
     {
-        if (session_status()===PHP_SESSION_NONE) session_start();
-        // ← also check here in case someone POSTS /login by hand
+        // fetch the PSR-3 logger
+        $logger = LoggingServiceProvider::getLogger();
+    
+        $logger->debug('login() invoked', [
+            'session_status' => session_status(),
+        ]);
+    
+        if (session_status()===PHP_SESSION_NONE) {
+            session_start();
+            $logger->debug('PHP session started');
+        }
+    
+        // check already-auth’d
         if (Auth::check()) {
+            $logger->info('User already authenticated, redirecting to /');
             $this->redirect('/');
         }
     
+        // grab inputs
         $email    = $_POST['email']    ?? '';
         $password = $_POST['password'] ?? '';
+        $logger->debug('Credentials received', ['email' => $email]);
     
-        // Hard-coded max attempts
         $maxAttempts = 3;
+        $_SESSION['last_email'] = $email;
+        $logger->debug('Saved last_email to session', ['last_email' => $_SESSION['last_email']]);
     
-// preserve the email so loginForm() can inspect it
-$_SESSION['last_email'] = $email;
-
-// if we showed a captcha, verify it
-if ($_POST['g-recaptcha-response'] ?? '' ) {
-    $resp = $_POST['g-recaptcha-response'];
-    $verify = file_get_contents(
-      "https://www.google.com/recaptcha/api/siteverify?"
-     . "secret={$_ENV['RECAPTCHA_SECRET_KEY']}&response={$resp}"
-    );
-    $json = json_decode($verify, true);
-    if (empty($json['success']) || $json['score'] < 0.5) {
-        $_SESSION['flash']['error'] = "CAPTCHA failed—prove you’re human.";
-        $this->redirect('/login');
-    }
-}
-
-
-        // Find the user
+        // CAPTCHA step
+        if (! empty($_POST['g-recaptcha-response'])) {
+            $logger->debug('Verifying reCAPTCHA');
+            $resp   = $_POST['g-recaptcha-response'];
+            $verify = file_get_contents(
+              "https://www.google.com/recaptcha/api/siteverify?"
+             . "secret={$_ENV['RECAPTCHA_SECRET_KEY']}&response={$resp}"
+            );
+            $json = json_decode($verify, true);
+            $logger->debug('reCAPTCHA response', $json);
+    
+            if (empty($json['success']) || ($json['score'] ?? 0) < 0.5) {
+                $logger->warning('reCAPTCHA failed, user might be bot');
+                $_SESSION['flash']['error'] = "CAPTCHA failed—prove you’re human.";
+                $this->redirect('/login');
+            }
+        }
+    
+        // lookup user
+        $logger->debug('Querying user by email', ['email' => $email]);
         $user = User::where('email', $email)->first();
     
-        // If no such user, sleep and redirect
         if (! $user) {
+            $logger->warning('Login failed: user not found', ['email' => $email]);
             sleep(1);
             $_SESSION['flash']['error'] = "Invalid credentials.";
             $this->redirect('/login');
         }
     
-        // If already admin-locked or hit maxFailures
+        // locked-out check
         if ($user->is_locked || $user->failed_attempts >= $maxAttempts) {
+            $logger->warning('Login blocked: account locked', [
+                'user_id'        => $user->id,
+                'failed_attempts'=> $user->failed_attempts,
+            ]);
             $_SESSION['flash']['error'] = "Account locked after {$maxAttempts} failed attempts.";
             $this->redirect('/login');
         }
     
-        // OK to try password
+        // password verify
         if (password_verify($password, $user->password)) {
-            //  success: reset counters
+            $logger->info('Password verified, logging in user', ['user_id' => $user->id]);
+    
+            // reset counters
             $user->failed_attempts = 0;
             $user->last_failed_at  = null;
             $user->is_locked       = 0;
             $user->save();
+            $logger->debug('User failed_attempts reset to zero');
     
- // 1) Create a new session record
- $token = bin2hex(random_bytes(32));  // 64-char hex
- $expires = Carbon::now()->addDays(14); // e.g. 14-day TTL
-
- UserSession::create([
-    'id'           => Str::uuid()->toString(),
-    'user_id'      => $user->id,
-    'token'        => $token,
-    'ip_address'   => $_SERVER['REMOTE_ADDR'] ?? null,
-    'user_agent'   => $_SERVER['HTTP_USER_AGENT'] ?? null,
-    'expires_at'   => $expires,
-    'last_activity'=> Carbon::now(),
-]);
-
- // 2) Store the session token in PHP session or a secure cookie
- $_SESSION['session_token'] = $token;
-
- $_SESSION['flash']['success'] = "Welcome back!";
- $this->redirect('/');
-}
+            // create session row
+            $token   = bin2hex(random_bytes(32));
+            $expires = Carbon::now()->addDays(14);
+            $session = UserSession::create([
+                'id'            => Str::uuid()->toString(),
+                'user_id'       => $user->id,
+                'token'         => $token,
+                'ip_address'    => $_SERVER['REMOTE_ADDR'] ?? null,
+                'user_agent'    => $_SERVER['HTTP_USER_AGENT'] ?? null,
+                'expires_at'    => $expires,
+                'last_activity' => Carbon::now(),
+            ]);
+            $logger->debug('New session record created', [
+                'session_id' => $session->id,
+                'expires_at' => $expires->toDateTimeString(),
+            ]);
     
-        //  failure: bump counter
+            // store in PHP session
+            $_SESSION['session_token'] = $token;
+            $logger->debug('Session token stored in PHP session');
+    
+            $_SESSION['flash']['success'] = "Welcome back!";
+            $logger->info('Redirecting to dashboard after successful login', [
+                'user_id' => $user->id,
+            ]);
+            $this->redirect('/');
+        }
+    
+        // failure path
         $user->failed_attempts += 1;
         $user->last_failed_at  = date('Y-m-d H:i:s');
+        $user->save();
+        $logger->warning('Password verify failed', [
+            'user_id'        => $user->id,
+            'failed_attempts'=> $user->failed_attempts,
+        ]);
     
         if ($user->failed_attempts >= $maxAttempts) {
-            // final lock
-            $user->is_locked = 1;
             $_SESSION['flash']['error'] = "Too many failed attempts. Account locked.";
+            $logger->alert('Account locked due to too many failures', [
+                'user_id' => $user->id,
+            ]);
         } else {
             $left = $maxAttempts - $user->failed_attempts;
             $_SESSION['flash']['error'] = "Invalid credentials. {$left} attempt" 
                                         . ($left === 1 ? '' : 's') 
                                         . " remaining.";
+            $logger->notice('Login attempt remaining', [
+                'user_id'         => $user->id,
+                'attempts_left'   => $left,
+            ]);
         }
     
-        $user->save();
         $this->redirect('/login');
     }
+    
     
     
     
