@@ -12,44 +12,36 @@ use Core\Stub;
 class MakeControllerCommand extends Command
 {
     protected static $defaultName = 'make:controller';
-    protected static $defaultDescription = 'Create a new controller class in a module';
+    protected static $defaultDescription = 'Create a new controller class';
 
     protected function configure()
     {
-        $this
-            ->addArgument('module', InputArgument::REQUIRED, 'Module name (e.g. auth)')
-            ->addArgument('name',   InputArgument::REQUIRED, 'Controller name (e.g. User)');
+        $this->addArgument('name', InputArgument::REQUIRED, 'Controller name (e.g. User)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $module    = ucfirst($input->getArgument('module'));
-        $classBase = ucfirst($input->getArgument('name'));
-        $class     = $classBase . 'Controller';
+        $name      = $input->getArgument('name');
+        $className = ucfirst($name) . 'Controller';
         $fs        = new Filesystem();
 
-        // target dir: app/modules/Auth/Controllers
-        $dir = __DIR__ . "/../../modules/{$module}/Controllers";
+        // ensure target dir exists
+        $dir = __DIR__ . '/../../Controllers';
         if (! $fs->exists($dir)) {
             $fs->mkdir($dir, 0755);
         }
 
-        // render stub
-        $stub      = new Stub(__DIR__ . '/../../../stubs/controller.stub');
-        $namespace = "App\\Modules\\{$module}\\Controllers";
-        $code      = $stub->render([
-            'namespace' => $namespace,
-            'class'     => $class,
-        ]);
+        $stub   = new Stub(__DIR__ . '/../../../stubs/controller.stub');
+        $code   = $stub->render(['name' => ucfirst($name)]);
+        $file   = "$dir/{$className}.php";
 
-        $file = "{$dir}/{$class}.php";
         if ($fs->exists($file)) {
-            $output->writeln("<error>{$class} already exists in module {$module}!</error>");
+            $output->writeln("<error>$className already exists!</error>");
             return Command::FAILURE;
         }
 
         $fs->dumpFile($file, $code);
-        $output->writeln("<info>Created:</info> {$file}");
+        $output->writeln("<info>Created controller:</info> $file");
         return Command::SUCCESS;
     }
 }
