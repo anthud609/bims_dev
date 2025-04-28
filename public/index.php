@@ -2,25 +2,62 @@
 require __DIR__ . '/../core/Bootstrap.php';
 
 use Core\Router;
-use App\Modules\Auth\Controllers\AuthController;
-use Core\Middleware\AuthMiddleware;
-use Core\Middleware\ThrottleMiddleware;
 
+// Create a new router instance
 $router = new Router();
 
-//TODO: redis must be installed on explicit port for this to work
-// // global: 100 req/min
-// $globalThrottle = new ThrottleMiddleware(100, 60);
-// $router->add('GET','.*', fn()=>null, [ $globalThrottle ]);
-// // login only: 10 attempts per 10 min
-// $loginThrottle = new ThrottleMiddleware(10, 600);
-// $router->add('POST','/login', [AuthController::class,'login'], [ $loginThrottle ]);
+// 1) Only define two static routes manually:
+//    - GET /
+//    - GET /dashboard
+$router->add('GET', '/', function() {
+    echo "Welcome to the homepage or dashboard!";
+});
 
-$router->add('GET', '/', [AuthController::class, 'home'], [AuthMiddleware::class]);
-$router->add('GET', '/login', [AuthController::class, 'loginForm']);
-$router->add('POST', '/login', [AuthController::class, 'login']);
-$router->add('GET', '/register', [AuthController::class, 'registerForm']);
-$router->add('POST', '/register', [AuthController::class, 'register']);
-$router->add('POST', '/logout', [AuthController::class, 'logout'], [AuthMiddleware::class]);
+$router->add('GET', '/dashboard', function() {
+    // For example, show the same content or redirect:
+    header('Location: /');
+    exit;
+});
 
+
+// 2) Automatically load and merge each module's Web routes
+$modulesDir     = __DIR__ . '/../app/modules';
+$webRouteFiles  = glob($modulesDir . '/*/Routes/Web.php');
+
+foreach ($webRouteFiles as $webFile) {
+    // Each file returns an array of route definitions
+    // e.g. [ ['GET','/auth/login',[AuthController::class,'login']], ... ]
+    $routes = require $webFile;
+
+    foreach ($routes as $r) {
+        // Basic shape: ['METHOD', '/uri', callableOrArrayHandler, (optional) middlewareArray]
+        // If your route array has only 3 items, add an empty array for middleware:
+        $method     = $r[0];
+        $path       = $r[1];
+        $handler    = $r[2] ?? null;
+        $middleware = $r[3] ?? [];
+        
+        $router->add($method, $path, $handler, $middleware);
+    }
+}
+
+
+// 3) Optionally load and merge each module's API routes
+$apiRouteFiles = glob($modulesDir . '/*/Routes/Api.php');
+
+foreach ($apiRouteFiles as $apiFile) {
+    $routes = require $apiFile;
+
+    foreach ($routes as $r) {
+        $method     = $r[0];
+        $path       = $r[1];
+        $handler    = $r[2] ?? null;
+        $middleware = $r[3] ?? [];
+
+        $router->add($method, $path, $handler, $middleware);
+    }
+}
+
+
+// 4) Finally, dispatch
 $router->dispatch($_SERVER['REQUEST_METHOD'], parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
