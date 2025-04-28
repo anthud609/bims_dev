@@ -7,6 +7,7 @@ use Core\Auth;
 use Core\Settings; // Import the Settings class
 use Carbon\Carbon;
 use App\Modules\Auth\Models\Session as UserSession;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -20,31 +21,35 @@ class AuthController extends Controller
         $user = User::find(Auth::userId());
     
         // send $user into the view instead of echoing here
-        $this->view('Auth/Views/login', compact('showCaptcha'), 'auth');
+        $this->view('Auth/Views/home', compact('user'));
     }
     
     public function loginForm(): void
     {
         if (session_status()===PHP_SESSION_NONE) session_start();
-    
-        // generate CSRF…
-        $_SESSION['csrf_token'] ??= bin2hex(random_bytes(32));
-    
-        // decide if we need captcha
-        $showCaptcha = false;
-        if (!empty($_SESSION['last_email'])) {
-            $user = User::where('email', $_SESSION['last_email'])->first();
-            $showCaptcha = $user && $user->failed_attempts >= 2;
+        // ← if they’re already authenticated, bounce them home
+        if (Auth::check()) {
+            $this->redirect('/');
         }
-    
-        $this->view('Auth/Views/login', compact('showCaptcha'));
+
+        $_SESSION['csrf_token'] ??= bin2hex(random_bytes(32));
+        $showCaptcha = false;
+        if (! empty($_SESSION['last_email'])) {
+            $u = User::where('email', $_SESSION['last_email'])->first();
+            $showCaptcha = $u && $u->failed_attempts >= 2;
+        }
+
+        // use your auth‐only layout
+        $this->view('Auth/Views/login', compact('showCaptcha'), 'auth');
     }
-    
+
 
     public function login(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        if (session_status()===PHP_SESSION_NONE) session_start();
+        // ← also check here in case someone POSTS /login by hand
+        if (Auth::check()) {
+            $this->redirect('/');
         }
     
         $email    = $_POST['email']    ?? '';
@@ -100,13 +105,14 @@ if ($_POST['g-recaptcha-response'] ?? '' ) {
  $expires = Carbon::now()->addDays(14); // e.g. 14-day TTL
 
  UserSession::create([
-     'user_id'      => $user->id,
-     'token'        => $token,
-     'ip_address'   => $_SERVER['REMOTE_ADDR'] ?? null,
-     'user_agent'   => $_SERVER['HTTP_USER_AGENT'] ?? null,
-     'expires_at'   => $expires,
-     'last_activity'=> Carbon::now(),
- ]);
+    'id'           => Str::uuid()->toString(),
+    'user_id'      => $user->id,
+    'token'        => $token,
+    'ip_address'   => $_SERVER['REMOTE_ADDR'] ?? null,
+    'user_agent'   => $_SERVER['HTTP_USER_AGENT'] ?? null,
+    'expires_at'   => $expires,
+    'last_activity'=> Carbon::now(),
+]);
 
  // 2) Store the session token in PHP session or a secure cookie
  $_SESSION['session_token'] = $token;
@@ -142,7 +148,19 @@ if ($_POST['g-recaptcha-response'] ?? '' ) {
     public function logout(): void
     {
         if (session_status() === PHP_SESSION_NONE) session_start();
+    
+        if (! empty($_SESSION['session_token'])) {
+            // Mark that session as revoked in the database
+            \App\Modules\Auth\Models\Session::where('token', $_SESSION['session_token'])
+                ->update([
+                    'is_revoked'    => true,
+                    'last_activity' => \Carbon\Carbon::now(),
+                    // optionally: 'expires_at' => \Carbon\Carbon::now(),
+                ]);
+        }
+    
         session_destroy();
         $this->redirect('/login');
     }
+    
 }

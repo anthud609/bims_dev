@@ -2,6 +2,7 @@
 namespace App\Modules\Auth\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Session extends Model
 {
