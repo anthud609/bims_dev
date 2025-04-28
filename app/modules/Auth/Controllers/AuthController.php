@@ -42,57 +42,62 @@ class AuthController extends Controller
             session_start();
         }
     
-        $email = $_POST['email'] ?? '';
+        $email    = $_POST['email']    ?? '';
         $password = $_POST['password'] ?? '';
     
-        $lockoutTimes = Settings::get('login.lockout_times', []);
-        $maxAttempts  = Settings::get('login.max_attempts', 5);
+        // Hard-coded max attempts
+        $maxAttempts = 3;
     
-        $attempts = $_SESSION['login_attempts'][$email]['count'] ?? 0;
-        $lastAttempt = $_SESSION['login_attempts'][$email]['time'] ?? 0;
-    
-        // Lockout check first
-        if (isset($lockoutTimes[$attempts])) {
-            if ($lockoutTimes[$attempts] === "admin") {
-                $_SESSION['flash']['error'] = "Account locked. Admin unlock required.";
-                $this->redirect('/login');
-            }
-    
-            $lockoutDuration = (int) $lockoutTimes[$attempts];
-            $timeRemaining = $lockoutDuration - (time() - $lastAttempt);
-    
-            if ($timeRemaining > 0) {
-                $minutes = ceil($timeRemaining / 60);
-                $_SESSION['flash']['error'] = "Account temporarily locked. Try again in {$minutes} minute(s).";
-                $this->redirect('/login');
-            }
-        }
-    
-        // Try to find user
+        // Find the user
         $user = User::where('email', $email)->first();
     
-        if ($user && password_verify($password, $user->password)) {
-            unset($_SESSION['login_attempts'][$email]); // Clear attempts on success
-            $_SESSION['user_id'] = $user->id;
-            $_SESSION['flash']['success'] = 'Welcome back!';
+        // If no such user, sleep and redirect
+        if (! $user) {
+            sleep(1);
+            $_SESSION['flash']['error'] = "Invalid credentials.";
+            $this->redirect('/login');
+        }
+    
+        // If already admin-locked or hit maxFailures
+        if ($user->is_locked || $user->failed_attempts >= $maxAttempts) {
+            $_SESSION['flash']['error'] = "Account locked after {$maxAttempts} failed attempts.";
+            $this->redirect('/login');
+        }
+    
+        // OK to try password
+        if (password_verify($password, $user->password)) {
+            // ✅ success: reset counters
+            $user->failed_attempts = 0;
+            $user->last_failed_at  = null;
+            $user->is_locked       = 0;
+            $user->save();
+    
+            $_SESSION['user_id']          = $user->id;
+            $_SESSION['flash']['success'] = "Welcome back!";
             $this->redirect('/');
         }
     
-        // Failed login handling
-        $attempts++;
-        $_SESSION['login_attempts'][$email]['count'] = $attempts;
-        $_SESSION['login_attempts'][$email]['time'] = time();
+        // ❌ failure: bump counter
+        $user->failed_attempts += 1;
+        $user->last_failed_at  = date('Y-m-d H:i:s');
     
-        // Calculate attempts remaining
-        $attemptsLeft = $maxAttempts - $attempts;
-        if ($attemptsLeft > 0) {
-            $_SESSION['flash']['error'] = "Invalid credentials. {$attemptsLeft} attempt(s) remaining before lockout.";
-        } else {
+        if ($user->failed_attempts >= $maxAttempts) {
+            // final lock
+            $user->is_locked = 1;
             $_SESSION['flash']['error'] = "Too many failed attempts. Account locked.";
+        } else {
+            $left = $maxAttempts - $user->failed_attempts;
+            $_SESSION['flash']['error'] = "Invalid credentials. {$left} attempt" 
+                                        . ($left === 1 ? '' : 's') 
+                                        . " remaining.";
         }
     
+        $user->save();
         $this->redirect('/login');
     }
+    
+    
+    
     
 
 
