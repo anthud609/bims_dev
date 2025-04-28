@@ -8,27 +8,33 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @package App\Modules\Auth\Models
  *
- * @property int    $id
+ * @property string    $id
  * @property string $created_at
  * @property string $updated_at
  */
+// app/modules/Auth/Models/User.php
 class User extends Model
 {
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
-    protected $fillable = ['email', 'password'];
+    // disable auto‐incrementing
+    public $incrementing = false;
 
+    // treat primary key as a string
+    protected $keyType = 'string';
 
-    /**
-     * The attributes that should be hidden for arrays.
-     *
-     * @var array
-     */
-    protected $hidden = ['password'];
+    // if your column is literally named "uuid" instead of "id"
+    protected $primaryKey = 'uuid';
+
+    protected $fillable = ['email','password','uuid'];
+    protected $hidden   = ['password'];
     
-
-    // Add your relationships, scopes, accessors/mutators below
+    // automatically generate a UUID on create:
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function($model){
+            if (!$model->{$model->getKeyName()}) {
+                $model->{$model->getKeyName()} = (string) \Illuminate\Support\Str::uuid();
+            }
+        });
+    }
 }
