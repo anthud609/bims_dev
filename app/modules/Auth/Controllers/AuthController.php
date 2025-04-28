@@ -5,6 +5,8 @@ use Core\Controller;
 use App\Modules\Auth\Models\User;
 use Core\Auth;
 use Core\Settings; // Import the Settings class
+use Carbon\Carbon;
+use App\Modules\Auth\Models\Session as UserSession;
 
 class AuthController extends Controller
 {
@@ -95,10 +97,25 @@ if ($_POST['g-recaptcha-response'] ?? '' ) {
             $user->is_locked       = 0;
             $user->save();
     
-            $_SESSION['user_id']          = $user->id;
-            $_SESSION['flash']['success'] = "Welcome back!";
-            $this->redirect('/');
-        }
+ // 1) Create a new session record
+ $token = bin2hex(random_bytes(32));  // 64-char hex
+ $expires = Carbon::now()->addDays(14); // e.g. 14-day TTL
+
+ UserSession::create([
+     'user_id'      => $user->id,
+     'token'        => $token,
+     'ip_address'   => $_SERVER['REMOTE_ADDR'] ?? null,
+     'user_agent'   => $_SERVER['HTTP_USER_AGENT'] ?? null,
+     'expires_at'   => $expires,
+     'last_activity'=> Carbon::now(),
+ ]);
+
+ // 2) Store the session token in PHP session or a secure cookie
+ $_SESSION['session_token'] = $token;
+
+ $_SESSION['flash']['success'] = "Welcome back!";
+ $this->redirect('/');
+}
     
         //  failure: bump counter
         $user->failed_attempts += 1;

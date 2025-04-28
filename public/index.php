@@ -8,15 +8,13 @@ use Core\Middleware\ThrottleMiddleware;
 
 $router = new Router();
 
-
-// global: 100 req/min
-$globalThrottle = new ThrottleMiddleware(100, 60);
-$router->add('GET','.*', fn()=>null, [ $globalThrottle ]);
-
-
-// login only: 10 attempts per 10 min
-$loginThrottle = new ThrottleMiddleware(10, 600);
-$router->add('POST','/login', [AuthController::class,'login'], [ $loginThrottle ]);
+//TODO: redis must be installed on explicit port for this to work
+// // global: 100 req/min
+// $globalThrottle = new ThrottleMiddleware(100, 60);
+// $router->add('GET','.*', fn()=>null, [ $globalThrottle ]);
+// // login only: 10 attempts per 10 min
+// $loginThrottle = new ThrottleMiddleware(10, 600);
+// $router->add('POST','/login', [AuthController::class,'login'], [ $loginThrottle ]);
 
 $router->add('GET', '/', [AuthController::class, 'home'], [AuthMiddleware::class]);
 $router->add('GET', '/login', [AuthController::class, 'loginForm']);
