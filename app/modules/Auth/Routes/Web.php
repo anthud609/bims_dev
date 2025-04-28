@@ -3,16 +3,24 @@ use Core\Middleware\AuthMiddleware;
 use App\Modules\Auth\Controllers\AuthController;
 
 return [
+    // GET / => AuthController::home
     ['GET', '/', [AuthController::class, 'home']],
 
-    ['GET', '/', function() {
-        if (!Auth::check()) {
-            header('Location: /login');
-            exit;
-        }
-        (new AuthController())->home();
-    }],
-    $router->add('POST', '/logout', [AuthController::class, 'logout'], [AuthMiddleware::class]),
-    $router->add('GET', '/login', [AuthController::class, 'loginForm']),
-    $router->add('POST', '/login', [AuthController::class, 'login']),
+    // Or if you prefer an inline closure for /:
+    // ['GET', '/', function() {
+    //     if (!\Core\Auth::check()) {
+    //         header('Location: /login');
+    //         exit;
+    //     }
+    //     (new AuthController())->home();
+    // }],
+
+    // POST /logout => AuthController::logout with AuthMiddleware
+    ['POST', '/logout', [AuthController::class, 'logout'], [AuthMiddleware::class]],
+
+    // GET /login => AuthController::loginForm
+    ['GET', '/login', [AuthController::class, 'loginForm']],
+
+    // POST /login => AuthController::login
+    ['POST', '/login', [AuthController::class, 'login']],
 ];

@@ -9,15 +9,7 @@ $router = new Router();
 // 1) Only define two static routes manually:
 //    - GET /
 //    - GET /dashboard
-$router->add('GET', '/', function() {
-    echo "Welcome to the homepage or dashboard!";
-});
 
-$router->add('GET', '/dashboard', function() {
-    // For example, show the same content or redirect:
-    header('Location: /');
-    exit;
-});
 
 
 // 2) Automatically load and merge each module's Web routes

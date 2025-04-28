@@ -12,6 +12,20 @@
         "symfony/console": "6.0",
         "symfony/filesystem": "6.0",
         "predis/predis": "^2.3",
-        "ramsey/uuid": "^4.7"
+        "ramsey/uuid": "^4.7",
+        "robmorgan/phinx": "^0.16.7"
+    },
+    
+      "scripts": {
+        "migrate": [
+          "vendor/bin/phinx migrate -e development"
+        ],
+        "migrate:rollback": [
+          "vendor/bin/phinx rollback -e development"
+        ],
+        "seed": [
+          "vendor/bin/phinx seed:run -e development"
+        ]
+      }
     }
-}
+    
