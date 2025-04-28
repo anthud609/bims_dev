@@ -1,0 +1,6 @@
+#!/usr/bin/env php
+<?php
+// bims/console
+require __DIR__ . '/../vendor/autoload.php';
+
+App\Console\Kernel::run();
