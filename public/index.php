@@ -9,7 +9,44 @@ $router = new Router();
 // 1) Only define two static routes manually:
 //    - GET /
 //    - GET /dashboard
+$logger = Core\LoggingServiceProvider::getLogger();
 
+// // DEBUG: very low‐level (dev only)
+// $logger->debug('Index loaded!', ['uid' => uniqid()]);
+
+// // INFO: high‐level business event
+// $logger->info('User profile viewed');
+
+// // NOTICE: normal but significant
+// $cacheKey = 'home_page';
+// $logger->notice('Cache miss, regenerating', ['cache_key' => $cacheKey]);
+
+// // WARNING: recoverable problem
+// $limit   = 100;
+// $window  = 60;
+// $logger->warning('Rate limit nearing', ['limit' => $limit, 'window' => $window]);
+
+// // ERROR: log inside a catch so $e is defined
+// try {
+//     // simulate something that throws
+//     throw new \RuntimeException('Simulated payment failure');
+// } catch (\Throwable $e) {
+//     $logger->error('Payment processing failed', [
+//         'order_id'  => 42,
+//         'exception' => $e,           // Monolog will stringify this
+//     ]);
+// }
+
+// // CRITICAL: component outage
+// $dbHost = $_ENV['DB_HOST'] ?? 'unknown';
+// $logger->critical('Database connection lost', ['host' => $dbHost]);
+
+// // ALERT: immediate action required
+// $clientIp = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+// $logger->alert('Security breach detected', ['ip' => $clientIp]);
+
+// // EMERGENCY: system unusable
+// $logger->emergency('Out of memory, shutting down!');
 
 
 // 2) Automatically load and merge each module's Web routes
